@@ -28,10 +28,6 @@ const REDIS_COMMAND_SET: &str = "SET";
 const REDIS_COMMAND_GET: &str = "GET";
 const REDIS_COMMAND_HSET: &str = "HSET";
 
-// Database key names
-const DB_KEY_BLOCKCHAIN_NUM_HEADERS: &str = "blockchain_number_of_headers";
-const DB_KEY_LAST_NODE_VERIFIED_HEIGHT: &str = "last_node_verified_height";
-
 //
 // BTreeMap key names
 //
@@ -63,43 +59,43 @@ const ERROR_DB_SET: &str = "ERROR! could not store the value for the given key";
 const ERROR_DB_GET: &str = "ERROR! could not get the value for the given key";
 const ERROR_DB_HSET: &str = "ERROR! could not store the hash set value for the given key";
 //const ERROR_DB_STORAGE_NUM_HEADERS: &str = "ERROR! could not store the number of headers in the chain";
-const ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT: &str = "ERROR! could not store the number of headers in the chain";
-const ERROR_DB_STORAGE_HEIGHT: &str = "ERROR! could not store the block height";
 
 ///
-/// Gets and saves the height of the current tip of the chain and the
-/// height of the last block verified by the node
+/// Fetches the height of the current tip of the longest chain
 ///
-pub fn get_heights(rpc_client: &Client, db_conn: &mut Connection) -> Result<(u64, u64)> {
-    let bc_info: GetBlockchainInfoResult = rpc_client
-        .get_blockchain_info()
-        .expect(ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL);
+pub fn get_longest_chain_height(rpc_client: &Client, db_conn: &mut Connection) -> Result<u64> {
+    let bc_info: GetBlockchainInfoResult =
+        rpc_client
+            .get_blockchain_info()
+            .expect(ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL);
+    Ok(bc_info.headers) }
 
-    // Get and save the number of headers in the chain
-    let hc: u64 = bc_info.headers;
-    store_height(db_conn, DB_KEY_BLOCKCHAIN_NUM_HEADERS, hc).expect(ERROR_DB_STORAGE_HEIGHT);
+///
+/// Fetches the height of the last block verified by our node
+///
+pub fn get_last_verified_block_height(rpc_client: &Client, db_conn: &mut Connection) -> Result<u64> {
+    let hv: u64 =
+        rpc_client
+            .get_block_count()
+            .expect(ERROR_RPC_BLOCKCOUNT_RETRIEVAL);
+    Ok(hv) }
 
-    // Get and save the height of the last block verified by the node
-    let hv: u64 = rpc_client
-        .get_block_count()
-        .expect(ERROR_RPC_BLOCKCOUNT_RETRIEVAL);
-    store_height(db_conn, DB_KEY_LAST_NODE_VERIFIED_HEIGHT, hv)
-        .expect(ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT);
-
-    Ok((hc, hv))
-}
 
 ///
 /// Saves the supplied block height to the database
 ///
-pub fn store_height(c: &mut Connection, k: &str, v: u64) -> RedisResult<()> {
+pub fn store_height(
+    db_connection :&mut Connection,
+    key :&str,
+    val :u64,
+    err_msg :&str
+) -> RedisResult<()> {
     cmd(REDIS_COMMAND_SET)
-        .arg(k)
-        .arg(v)
-        .query::<()>(c)
-        .expect(ERROR_DB_SET);
-    Ok(())
-}
+        .arg(key)
+        .arg(val)
+        .query::<()>(db_connection)
+        .expect(err_msg);
+    Ok(()) }
 
 ///
 /// Fetches the requested block height value from the database and returns it

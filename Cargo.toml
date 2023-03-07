@@ -6,12 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.22.0", features = ["full"] }
-redis = { version = "0.22.1", features = ["tokio-comp"] }
-#redis = { version = "0.22.1", features = ["async-std-comp"] }
-bitcoincore-rpc = "0.16.0"
-async_zmq = "0.3.3"
-bitcoin_hashes = "0.11.0"
-chrono = "0.4.23"
 log = "0.4.17"
 env_logger = "0.10.0"
+chrono = "0.4.23"
+tokio = { version = "1.22.0", features = ["full"] }
+async_zmq = "0.3.3"
+bitcoin_hashes = "0.11.0"
+bitcoincore-rpc = "0.16.0"
+redis = { version = "0.22.1", features = ["tokio-comp"] }

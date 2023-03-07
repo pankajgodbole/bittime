@@ -11,8 +11,6 @@
 #![deny(unused_imports)]
 //#![deny(missing_docs)]
 #![deny(unused_must_use)]
-
-
 #![allow(unused)]
 
 //TODO Use lifetime annotations
@@ -47,7 +45,8 @@ use log::{
 use bittime::{
     ERROR_RPC_BLOCKCOUNT_RETRIEVAL,
     ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL,
-    get_heights,
+    get_longest_chain_height,
+    get_last_verified_block_height,
     get_info,
     store_height,
     store_info,
@@ -60,43 +59,45 @@ use std::{
     time::Duration
 };
 
-
 // Bitcoin Core RPC connection details
 const NODE_URL: &str = "http://localhost:8332";
 const USERNAME: &str = "t580";
 const PASSWORD: &str = "g7-oP?3USrjv-cyEz3^z%wEvTXv23i";
 
-// Redis details
+// Bitcoin RPC errors
+const ERROR_RPC_BITCOIN_NODE_AUTHENTICATION: &str = "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
+
+// Database connection details
 const REDIS_URL: &str = "redis://127.0.0.1/";
 
-// Bitcoin RPC errors
-const ERROR_RPC_BITCOIN_NODE_AUTHENTICATION: &str =
-    "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
+// Database key names
+const DB_KEY_BLOCKCHAIN_NUM_HEADERS: &str = "blockchain_number_of_headers";
+const DB_KEY_LAST_NODE_VERIFIED_HEIGHT: &str = "last_node_verified_height";
+const DB_KEY_NEXT_TO_PROCESS_HEIGHT: &str = "next_to_process_height";
 
 // Database errors
 const ERROR_DB_CONNECTION: &str = "ERROR! could not connect with the database";
 const ERROR_DB_VALUE_STORAGE: &str = "ERROR! could not store the value";
-
-// Database key names
-const DB_KEY_NEXT_TO_PROCESS_HEIGHT: &str = "next_to_process_height";
+const ERROR_DB_STORAGE_HEIGHT: &str = "ERROR! could not store the block height";
+const ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT: &str = "ERROR! could not store the number of headers in the chain";
+const ERROR_DB_STORAGE_HEIGHT_TO_VERIFY_NEXT :&str = "ERROR! could not store the height of the block to verify next";
 
 // ZMQ connection details for blocks and transactions
-//const ZMQ_URI_PUBHASHBLOCK :&str = "tcp://127.0.0.1:28332";
 const ZMQ_URI_PUBRAWBLOCK: &str = "tcp://127.0.0.1:28332";
-//const ZMQ_URI_PUBHASHTX    :&str = "tcp://127.0.0.1:28332";
 //const ZMQ_URI_PUBRAWTX     :&str = "tcp://127.0.0.1:28332";
+//const ZMQ_URI_PUBHASHBLOCK :&str = "tcp://127.0.0.1:28332";
+//const ZMQ_URI_PUBHASHTX    :&str = "tcp://127.0.0.1:28332";
 
 // ZMQ topics for blocks and transactions
-//const ZMQ_TOPIC_PUBHASHBLOCK :&str = "hashblock";
 const ZMQ_TOPIC_PUBRAWBLOCK: &str = "rawblock";
-//const ZMQ_TOPIC_PUBHASHTX    :&str = "hashtx";
 //const ZMQ_TOPIC_PUBRAWTX     :&str = "rawtx";
+//const ZMQ_TOPIC_PUBHASHBLOCK :&str = "hashblock";
+//const ZMQ_TOPIC_PUBHASHTX    :&str = "hashtx";
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-
-    trace!("main");
+    trace!(":main");
 
     // Authenticate with a local Bitcoin node
     let mut rpc_client: Client =
@@ -104,37 +105,35 @@ async fn main() -> Result<()> {
             NODE_URL,
             Auth::UserPass(USERNAME.to_string(), PASSWORD.to_string()),
         )
-    //.unwrap()
-    .expect(ERROR_RPC_BITCOIN_NODE_AUTHENTICATION);
+        .expect(ERROR_RPC_BITCOIN_NODE_AUTHENTICATION);
 
     // Connect to the database
     let db_client: redis::Client = redis::Client::open(REDIS_URL).expect(ERROR_DB_CONNECTION);
     let mut db_conn: Connection = db_client.get_connection().unwrap();
 
+    //
+    // Process blocks beginning with the genesis block
+    //
     loop {
         trace!(":main :loop");
 
         let mut hc: u64 = 0;
         let mut hv: u64 = 0;
 
-        let heights: (u64, u64) = get_heights(&rpc_client, &mut db_conn)?;
-        match heights {
-            (_, _) => {
-                hc = heights.0;
-                hv = heights.1;
-            }
-            _ => {
-                error!(":main :loop :{}", ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL);
-                continue;
-            }
-        }
-
+        hc = get_longest_chain_height(&rpc_client, &mut db_conn)?;
+        hv = get_last_verified_block_height(&rpc_client ,&mut db_conn)?;
         println!("main: hc: {}, hv: {}", hc, hv);
 
+        // If there was an error while retrieving the heights, then try again
+        if hc == 0 || hv == 0 {
+            continue;
+        }
+
+        // Save these heights for later use
+        store_height(&mut db_conn, DB_KEY_BLOCKCHAIN_NUM_HEADERS, hc, ERROR_DB_STORAGE_HEIGHT);
+        store_height(&mut db_conn, DB_KEY_LAST_NODE_VERIFIED_HEIGHT, hv, ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT);
+
         if hc == hv {
-            //
-            // Process blocks beginning with the genesis block
-            //
 
             // Get the height of the next block we have to process
             let mut hn: u64 = 0;
@@ -150,7 +149,8 @@ async fn main() -> Result<()> {
                 // Now listen for notifications for new blocks, as they are verified by the node
 
                 //let zmq_context :Context = Context::new();
-                let mut sub: Subscribe = subscribe(ZMQ_URI_PUBRAWBLOCK)?
+                let mut sub: Subscribe =
+                    subscribe(ZMQ_URI_PUBRAWBLOCK)?
                     //.expect("ERROR :could not build a socket")
                     .connect()?;
                 //.expect("ERROR :could not connect to the ZMQ socket");
@@ -167,7 +167,8 @@ async fn main() -> Result<()> {
                     //println!("main: zmq_new_block_event :{:?}", zmq_new_block_event);
 
                     // Find the current tip of the chain
-                    let hv: u64 = rpc_client
+                    let hv: u64 =
+                        rpc_client
                         .get_block_count()
                         .expect(ERROR_RPC_BLOCKCOUNT_RETRIEVAL);
                     println!("main: hn == (hv+1): hv: {}", hv);
@@ -178,10 +179,12 @@ async fn main() -> Result<()> {
                     //println!("{}: info_map:{:?}", ht, info_map);
                     println!(
                         "{}: time_as_seconds: {}, time_as_utc: {}, hash:{}",
-                        hn, info_map["time_as_seconds"], info_map["time_as_utc"], info_map["hash"]
+                        hn,
+                        info_map["time_as_seconds"],
+                        info_map["time_as_utc"],
+                        info_map["hash"]
                     );
-                    store_info(&mut db_conn, hn.to_string(), info_map)
-                        .expect(ERROR_DB_VALUE_STORAGE);
+                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_VALUE_STORAGE);
                 }
             } else {
                 while hn < (hv + 1) {
@@ -190,13 +193,15 @@ async fn main() -> Result<()> {
                     //println!("{}: info_map:{:?}", ht, info_map);
                     println!(
                         "{}: time_as_seconds: {}, time_as_utc: {}, hash:{}",
-                        ht, info_map["time_as_seconds"], info_map["time_as_utc"], info_map["hash"]
+                        ht,
+                        info_map["time_as_seconds"],
+                        info_map["time_as_utc"],
+                        info_map["hash"]
                     );
-                    store_info(&mut db_conn, hn.to_string(), info_map)
-                        .expect(ERROR_DB_VALUE_STORAGE);
+                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_VALUE_STORAGE);
 
                     hn += 1;
-                    store_height(&mut db_conn, DB_KEY_NEXT_TO_PROCESS_HEIGHT, hn).unwrap();
+                    store_height(&mut db_conn, DB_KEY_NEXT_TO_PROCESS_HEIGHT, hn, ERROR_DB_STORAGE_HEIGHT_TO_VERIFY_NEXT).unwrap();
                 }
             }
         }
