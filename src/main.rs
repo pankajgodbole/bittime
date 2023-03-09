@@ -42,9 +42,13 @@ use log::{
     trace,
 };
 
+use std::{
+    collections::BTreeMap,
+    thread::sleep,
+    time::Duration
+};
+
 use bittime::{
-    ERROR_RPC_BLOCKCOUNT_RETRIEVAL,
-    ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL,
     get_longest_chain_height,
     get_last_verified_block_height,
     get_info,
@@ -53,51 +57,34 @@ use bittime::{
     fetch_height
 };
 
-use std::{
-    collections::BTreeMap,
-    thread::sleep,
-    time::Duration
+mod constants;
+use constants::constants::{
+    NODE_URL,
+    USERNAME,
+    PASSWORD,
+    ERROR_RPC_BITCOIN_NODE_AUTHENTICATION,
+    REDIS_URL,
+    ERROR_DB_CONNECTION,
+    DB_KEY_BLOCKCHAIN_NUM_HEADERS,
+    DB_KEY_LAST_NODE_VERIFIED_HEIGHT,
+    DB_KEY_NEXT_TO_PROCESS_HEIGHT,
+    ERROR_DB_STORAGE_HEIGHT,
+    ERROR_DB_STORAGE_VALUE,
+    ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT,
+    ERROR_DB_STORAGE_HEIGHT_TO_VERIFY_NEXT,
+    ERROR_RPC_BLOCKCOUNT_RETRIEVAL,
+    ZMQ_URI_PUBRAWBLOCK,
+    ZMQ_TOPIC_PUBRAWBLOCK,
 };
 
 // Bitcoin Core RPC connection details
-const NODE_URL: &str = "http://localhost:8332";
-const USERNAME: &str = "t580";
-const PASSWORD: &str = "g7-oP?3USrjv-cyEz3^z%wEvTXv23i";
 
-// Bitcoin RPC errors
-const ERROR_RPC_BITCOIN_NODE_AUTHENTICATION: &str = "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
 
-// Database connection details
-const REDIS_URL: &str = "redis://127.0.0.1/";
-
-// Database key names
-const DB_KEY_BLOCKCHAIN_NUM_HEADERS: &str = "blockchain_number_of_headers";
-const DB_KEY_LAST_NODE_VERIFIED_HEIGHT: &str = "last_node_verified_height";
-const DB_KEY_NEXT_TO_PROCESS_HEIGHT: &str = "next_to_process_height";
-
-// Database errors
-const ERROR_DB_CONNECTION: &str = "ERROR! could not connect with the database";
-const ERROR_DB_VALUE_STORAGE: &str = "ERROR! could not store the value";
-const ERROR_DB_STORAGE_HEIGHT: &str = "ERROR! could not store the block height";
-const ERROR_DB_STORAGE_LAST_VERIFIED_HEIGHT: &str = "ERROR! could not store the number of headers in the chain";
-const ERROR_DB_STORAGE_HEIGHT_TO_VERIFY_NEXT :&str = "ERROR! could not store the height of the block to verify next";
-
-// ZMQ connection details for blocks and transactions
-const ZMQ_URI_PUBRAWBLOCK: &str = "tcp://127.0.0.1:28332";
-//const ZMQ_URI_PUBRAWTX     :&str = "tcp://127.0.0.1:28332";
-//const ZMQ_URI_PUBHASHBLOCK :&str = "tcp://127.0.0.1:28332";
-//const ZMQ_URI_PUBHASHTX    :&str = "tcp://127.0.0.1:28332";
-
-// ZMQ topics for blocks and transactions
-const ZMQ_TOPIC_PUBRAWBLOCK: &str = "rawblock";
-//const ZMQ_TOPIC_PUBRAWTX     :&str = "rawtx";
-//const ZMQ_TOPIC_PUBHASHBLOCK :&str = "hashblock";
-//const ZMQ_TOPIC_PUBHASHTX    :&str = "hashtx";
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    trace!(":main");
+    info!(":main");
 
     // Authenticate with a local Bitcoin node
     let mut rpc_client: Client =
@@ -184,7 +171,7 @@ async fn main() -> Result<()> {
                         info_map["time_as_utc"],
                         info_map["hash"]
                     );
-                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_VALUE_STORAGE);
+                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_STORAGE_VALUE);
                 }
             } else {
                 while hn < (hv + 1) {
@@ -198,7 +185,7 @@ async fn main() -> Result<()> {
                         info_map["time_as_utc"],
                         info_map["hash"]
                     );
-                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_VALUE_STORAGE);
+                    store_info(&mut db_conn, hn.to_string(), info_map).expect(ERROR_DB_STORAGE_VALUE);
 
                     hn += 1;
                     store_height(&mut db_conn, DB_KEY_NEXT_TO_PROCESS_HEIGHT, hn, ERROR_DB_STORAGE_HEIGHT_TO_VERIFY_NEXT).unwrap();

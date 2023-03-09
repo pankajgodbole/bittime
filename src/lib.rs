@@ -22,43 +22,22 @@ use chrono::{TimeZone, Utc};
 
 use std::{collections::BTreeMap};
 
-// Redis details
-const REDIS_URL: &str = "redis://127.0.0.1/";
-const REDIS_COMMAND_SET: &str = "SET";
-const REDIS_COMMAND_GET: &str = "GET";
-const REDIS_COMMAND_HSET: &str = "HSET";
+mod constants;
+use crate::constants::constants::{
+    ERROR_RPC_BLOCKHASH_RETRIEVAL,
+    ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL,
+    ERROR_RPC_BLOCKCOUNT_RETRIEVAL,
+    ERROR_RPC_BLOCKHEADER_INFO_RETRIEVAL,
+    ERROR_DB_GET,
+    ERROR_DB_HSET,
+    REDIS_COMMAND_SET,
+    REDIS_COMMAND_GET,
+    REDIS_COMMAND_HSET,
+    MAP_KEY_TIME_AS_SECONDS,
+    MAP_KEY_TIME_AS_UTC,
+    MAP_KEY_HASH
+};
 
-//
-// BTreeMap key names
-//
-const MAP_KEY_HASH: &str = "hash";
-const MAP_KEY_TIME_AS_SECONDS: &str = "time_as_seconds";
-const MAP_KEY_TIME_AS_UTC: &str = "time_as_utc";
-/*
-const MAP_KEY_NUM_CONFIRMATIONS         :&str = "number_of_confirmations";
-const MAP_KEY_SIZE                      :&str = "size";
-const MAP_KEY_WEIGHT                    :&str = "weight";
-const MAP_KEY_VERSION                   :&str = "protocol_version";
-const MAP_KEY_MERKLE_ROOT               :&str = "merkle_root";
-const MAP_KEY_DIFFICULTY                :&str = "difficulty";
-const MAP_KEY_NUM_TRANSACTIONS          :&str = "number_of_transactions";
-const MAP_KEY_TRANSACTIONS              :&str = "transactions";
-const MAP_KEY_PREV_BLOCK_HASH           :&str = "hash_of_previous_block";
-const MAP_KEY_NEXT_BLOCK_HASH           :&str = "hash_of_next_block";
-*/
-
-//
-// panic! error messages
-//
-pub const ERROR_RPC_BLOCKCOUNT_RETRIEVAL: &str = "ERROR! could not get the block count";
-pub const ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL: &str = "ERROR! could not get the blockchain info";
-const ERROR_RPC_BLOCKHASH_RETRIEVAL: &str = "ERROR! could not get the block hash";
-const ERROR_RPC_BLOCKHEADER_INFO_RETRIEVAL: &str = "ERROR! could not get the block header by hash";
-
-const ERROR_DB_SET: &str = "ERROR! could not store the value for the given key";
-const ERROR_DB_GET: &str = "ERROR! could not get the value for the given key";
-const ERROR_DB_HSET: &str = "ERROR! could not store the hash set value for the given key";
-//const ERROR_DB_STORAGE_NUM_HEADERS: &str = "ERROR! could not store the number of headers in the chain";
 
 ///
 /// Fetches the height of the current tip of the longest chain
