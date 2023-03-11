@@ -8,6 +8,7 @@ use redis::{cmd, Connection, RedisResult};
 // To interact with the Bitcoin Core node via its RPC interface
 //
 use bitcoincore_rpc::{
+    Auth,
     Client,
     RpcApi,
     bitcoin::BlockHash,
@@ -24,6 +25,12 @@ use std::{collections::BTreeMap};
 
 mod constants;
 use crate::constants::constants::{
+    NODE_RPC_URL,
+    RPC_CLIENT_USERNAME,
+    RPC_CLIENT_PASSWORD,
+    ERROR_RPC_BITCOIN_NODE_AUTHENTICATION,
+    DB_URL,
+    ERROR_DB_CONNECTION,
     ERROR_RPC_BLOCKHASH_RETRIEVAL,
     ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL,
     ERROR_RPC_BLOCKCOUNT_RETRIEVAL,
@@ -38,6 +45,7 @@ use crate::constants::constants::{
     MAP_KEY_HASH
 };
 
+mod my_errors;
 
 ///
 /// Fetches the height of the current tip of the longest chain

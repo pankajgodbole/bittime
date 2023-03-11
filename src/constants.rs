@@ -4,9 +4,9 @@
 
 pub mod constants {
     // Bitcoin Core RPC connection details
-    pub const NODE_URL: &str = "http://localhost:8332";
-    pub const USERNAME: &str = "t580";
-    pub const PASSWORD: &str = "g7-oP?3USrjv-cyEz3^z%wEvTXv23i";
+    pub const NODE_RPC_URL: &str = "http://localhost:8332";
+    pub const RPC_CLIENT_USERNAME: &str = "t580";
+    pub const RPC_CLIENT_PASSWORD: &str = "g7-oP?3USrjv-cyEz3^z%wEvTXv23i";
 
     // Bitcoin RPC errors
     pub const ERROR_RPC_BITCOIN_NODE_AUTHENTICATION: &str = "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
@@ -16,7 +16,7 @@ pub mod constants {
     pub const ERROR_RPC_BLOCKHEADER_INFO_RETRIEVAL: &str = "ERROR! could not get the block header by hash";
 
     // Redis details
-    pub const REDIS_URL: &str = "redis://127.0.0.1/";
+    pub const DB_URL: &str = "redis://127.0.0.1/";
     pub const REDIS_COMMAND_SET: &str = "SET";
     pub const REDIS_COMMAND_GET: &str = "GET";
     pub const REDIS_COMMAND_HSET: &str = "HSET";
