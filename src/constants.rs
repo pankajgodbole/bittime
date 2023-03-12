@@ -9,7 +9,7 @@ pub mod constants {
     pub const RPC_CLIENT_PASSWORD: &str = "g7-oP?3USrjv-cyEz3^z%wEvTXv23i";
 
     // Bitcoin RPC errors
-    pub const ERROR_RPC_BITCOIN_NODE_AUTHENTICATION: &str = "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
+    pub const ERROR_RPC_AUTHENTICATION: &str = "ERROR! could not authenticate with the Bitcoin node. Exiting ...";
     pub const ERROR_RPC_BLOCKCOUNT_RETRIEVAL: &str = "ERROR! could not get the block count";
     pub const ERROR_RPC_BLOCKCHAIN_INFO_RETRIEVAL: &str = "ERROR! could not get the blockchain info";
     pub const ERROR_RPC_BLOCKHASH_RETRIEVAL: &str = "ERROR! could not get the block hash";

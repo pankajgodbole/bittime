@@ -2,25 +2,31 @@
 // db.rs
 //
 
-use crate::constants::constants::{
-    DB_URL,
-};
+pub mod db_connection_details {
 
-#[derive(Debug)]
-pub struct DbConnectionCredentials {
-    pub url: String,
-}
+    use crate::constants::constants::{
+        DB_URL,
+        ERROR_DB_CONNECTION,
+    };
 
-impl Default for DbConnectionCredentials {
-    fn default() -> Self {
-        DbConnectionCredentials {
-            url: DB_URL.to_string(),
+    #[derive(Debug)]
+    pub struct DbConnectionDetails {
+        pub url: &'static str,
+        pub error: &'static str,
+    }
+
+    impl Default for DbConnectionDetails {
+        fn default() -> Self {
+            DbConnectionDetails {
+                url: DB_URL,
+                error: ERROR_DB_CONNECTION,
+            }
         }
     }
-}
 
-impl DbConnectionCredentials {
-    pub fn new() -> Self {
-        Default::default()
+    impl DbConnectionDetails {
+        pub fn new() -> Self {
+            Default::default()
+        }
     }
 }

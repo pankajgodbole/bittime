@@ -6,7 +6,7 @@
 use thiserror::Error;
 
 use crate::constants::constants::{
-    ERROR_RPC_BITCOIN_NODE_AUTHENTICATION,
+    ERROR_RPC_AUTHENTICATION,
 };
 
 #[derive(Debug, Error)]

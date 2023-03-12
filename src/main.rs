@@ -59,8 +59,6 @@ use bittime::{
 
 mod constants;
 use constants::constants::{
-    ERROR_RPC_BITCOIN_NODE_AUTHENTICATION,
-    ERROR_DB_CONNECTION,
     DB_KEY_BLOCKCHAIN_NUM_HEADERS,
     DB_KEY_LAST_NODE_VERIFIED_HEIGHT,
     DB_KEY_NEXT_TO_PROCESS_HEIGHT,
@@ -73,14 +71,13 @@ use constants::constants::{
     ZMQ_TOPIC_PUBRAWBLOCK,
 };
 
-mod nrcc;
-use nrcc::nrcc::NodeRpcConnectionCredentials;
-
 mod my_errors;
-use my_errors::NodeRpcConnectionError;
-
+mod rpc;
 mod db;
-use db::DbConnectionCredentials;
+
+use my_errors::NodeRpcConnectionError;
+use rpc::rpc::RpcAuthentication;
+use db::db_connection_details::DbConnectionDetails;
 
 
 #[tokio::main]
@@ -89,12 +86,12 @@ async fn main() -> Result<()> {
     info!(":main");
 
     // Authenticate with a local Bitcoin node
-    let nrcc :NodeRpcConnectionCredentials = NodeRpcConnectionCredentials::default();
-    let mut rpc_client :Client = create_rpc_client(nrcc);
+    let nra: RpcAuthentication = RpcAuthentication::default();
+    let mut rpc_client :Client = create_rpc_client(nra);
 
     // Connect to the database
-    let dbcc : DbConnectionCredentials = DbConnectionCredentials::default();
-    let mut db_conn :DbConnection = get_db_connection(dbcc);
+    let dbcd : DbConnectionDetails = DbConnectionDetails::default();
+    let mut db_conn :DbConnection = get_db_connection(dbcd);
 
     //
     // Process blocks beginning with the genesis block
@@ -203,17 +200,14 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-
-fn create_rpc_client(nrcc: NodeRpcConnectionCredentials) -> Client {
+pub fn create_rpc_client(nra: RpcAuthentication) -> Client {
     Client::new(
-        nrcc.url.as_str(),
-        Auth::UserPass(nrcc.username, nrcc.password), )
-        .expect(ERROR_RPC_BITCOIN_NODE_AUTHENTICATION)
+        nra.url,
+        Auth::UserPass(nra.username.to_string(), nra.password.to_string()),
+    ).expect(nra.error)
 }
 
-fn get_db_connection(dbcc:DbConnectionCredentials) -> DbConnection {
-    let db_client: redis::Client =
-        redis::Client::open(dbcc.url).expect(ERROR_DB_CONNECTION);
+fn get_db_connection(dbcd:DbConnectionDetails) -> DbConnection {
+    let db_client: redis::Client = redis::Client::open(dbcd.url).expect(dbcd.error);
     db_client.get_connection().unwrap()
 }
-
